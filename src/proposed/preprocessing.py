@@ -6,7 +6,6 @@ import glob
 def preprocess_single_image(image_path, target_size=(800, 400)):
     img = cv2.imread(image_path)
     if img is None: return None
-    # Hanya resize dan kembalikan gambar berwarna
     return cv2.resize(img, target_size)
 
 def load_and_preprocess_dataset(data_dir, target_size=(800, 400)):

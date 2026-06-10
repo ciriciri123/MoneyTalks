@@ -4,7 +4,6 @@ import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, classification_report
-# KITA TIDAK PAKAI STANDARD SCALER LAGI
 from sklearn.feature_extraction.text import TfidfTransformer
 
 from preprocessing import load_and_preprocess_dataset
@@ -38,17 +37,14 @@ def train_proposed_model():
     bovw_test_tfidf = tfidf.transform(bovw_test_raw).toarray()
     joblib.dump(tfidf, os.path.join(MODELS_DIR, 'tfidf_scaler.pkl'))
     
-    # MAGIC FIX: Kalikan fitur Teks/Tekstur dengan 3.0 agar AI lebih fokus membaca pola!
     bovw_train_tfidf = bovw_train_tfidf * 3.0
     bovw_test_tfidf = bovw_test_tfidf * 3.0
     
-    # Gabungkan
     X_train_final = np.hstack((bovw_train_tfidf, X_color_train))
     X_test_final = np.hstack((bovw_test_tfidf, X_color_test))
 
     print("\n=== PROPOSED MODEL: PELATIHAN SVM ===")
-    # MAGIC FIX: Ganti Kernel ke 'linear' dan nyalakan probability=True
-    svm = SVC(kernel='linear', C=1.0, class_weight='balanced', probability=True, random_state=42)
+    svm = SVC(kernel='rbf', C=1.0, gamma='scale', class_weight='balanced', probability=True, random_state=42)
     svm.fit(X_train_final, y_train)
     
     svm_preds = svm.predict(X_test_final)
@@ -66,7 +62,6 @@ def train_proposed_model():
     joblib.dump(svm, svm_path)
     print(f"[*] Model PROPOSED berhasil disimpan di: {svm_path}")
     
-    # Hapus scaler.pkl yang lama agar tidak mengotori folder
     old_scaler = os.path.join(MODELS_DIR, 'scaler.pkl')
     if os.path.exists(old_scaler):
         os.remove(old_scaler)

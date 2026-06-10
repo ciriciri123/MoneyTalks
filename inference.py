@@ -285,7 +285,7 @@ def predict_currency(image_bytes):
         if len(descriptors) < 50:
             return {"label": "none", "confidence": 0.0}
 
-        # Prediksi SVM
+        # --- 1. PREDIKSI SVM ---
         bovw_raw = get_bovw_histogram(descriptors, _kmeans_model)
         bovw_tfidf = _tfidf.transform([bovw_raw]).toarray()[0]
         bovw_tfidf = bovw_tfidf * 3.0
@@ -299,17 +299,42 @@ def predict_currency(image_bytes):
         sorted_proba = np.sort(proba)
         svm_margin = float(sorted_proba[-1] - sorted_proba[-2]) if len(sorted_proba) >= 2 else float(confidence)
 
-        # Prediksi OCR
+        # --- 2. PREDIKSI OCR (DENGAN DOUBLE SPIN ANTI-TERBALIK) ---
         ocr_label = None
         ocr_vote_ratio = 0.0
         try:
-            ocr_label, ocr_vote_ratio, ocr_pass_count = _predict_with_ocr(ocr_crop)
-            if ocr_label:
-                print(f"[OCR SUCCESS] label={ocr_label} vote_ratio={ocr_vote_ratio:.2f} dari {ocr_pass_count} pass")
+            # Percobaan 1: Posisi normal (0 derajat)
+            ocr_label_1, ocr_vote_ratio_1, ocr_pass_count_1 = _predict_with_ocr(ocr_crop)
+            
+            # Jika tebakan OCR sangat lemah (rasio < 0.20), curigai uang terbalik 180 derajat
+            if ocr_vote_ratio_1 < 0.20:
+                print("[INFO] OCR awal lemah/gagal. Mencoba rotasi 180 derajat (Upside Down)...")
+                
+                # Putar gambar 180 derajat
+                ocr_crop_flipped = cv2.rotate(ocr_crop, cv2.ROTATE_180)
+                
+                # Percobaan 2: Baca ulang setelah diputar
+                ocr_label_2, ocr_vote_ratio_2, ocr_pass_count_2 = _predict_with_ocr(ocr_crop_flipped)
+                
+                # Bandingkan siapa yang rasio votingnya lebih meyakinkan
+                if ocr_label_2 and ocr_vote_ratio_2 > ocr_vote_ratio_1:
+                    ocr_label = ocr_label_2
+                    ocr_vote_ratio = ocr_vote_ratio_2
+                    print(f"[OCR SUCCESS] Uang terbalik berhasil dibaca! label={ocr_label} vote_ratio={ocr_vote_ratio:.2f}")
+                else:
+                    ocr_label = ocr_label_1
+                    ocr_vote_ratio = ocr_vote_ratio_1
+                    if ocr_label:
+                        print(f"[OCR SUCCESS] Mempertahankan rotasi awal. label={ocr_label} vote_ratio={ocr_vote_ratio:.2f}")
+            else:
+                ocr_label = ocr_label_1
+                ocr_vote_ratio = ocr_vote_ratio_1
+                print(f"[OCR SUCCESS] Orientasi normal terbaca baik. label={ocr_label} vote_ratio={ocr_vote_ratio:.2f}")
+                
         except Exception as e:
             print(f"[OCR WARNING] Tesseract error: {e}")
 
-        # Pilih label terakhir
+        # --- 3. DECISION FUSION ---
         final_label = svm_label
         
         if ocr_label:
