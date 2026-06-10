@@ -1,0 +1,217 @@
+{#
+  app/templates/admin/dashboard.html — Admin Dashboard
+  ====================================================
+  The first page an admin sees after successful authentication.
+  Confirms the login worked, shows real data from Supabase, and
+  provides a complete shell for future dashboard expansions.
+
+  Template hierarchy: base.html → base_admin.html → dashboard.html
+
+  Context variables (injected by auth.py's dashboard() route):
+    admin        — AdminUser object (current_user)
+    scan_count   — int: total rows in ScannedMoney table (or "N/A" on error)
+    active_model — ModelRecord | None: the currently deployed model
+
+  Extensibility:
+    - Add new stat cards inside .stats-grid
+    - Add new section cards below .stats-grid
+    - Topbar right slot ({% block topbar_right %}) shows the active model pill
+
+  State handled:
+    - active_model is None → shows a warning card instead of the model pill
+    - scan_count is "N/A" → displays gracefully (Supabase error during load)
+#}
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Dashboard — MoneyTalks Admin{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block topbar_right %}
+  {# Active model version pill shown in the top-right of the topbar #}
+  {% if active_model %}
+    <a
+      href="{{ url_for('auth.models') }}"
+      class="topbar-model-pill"
+      title="Currently deployed: model {{ active_model.model_id }}, version {{ active_model.version }}"
+    >
+      <span class="topbar-model-pill__dot" aria-hidden="true"></span>
+      Model v{{ active_model.version }}
+    </a>
+  {% else %}
+    <span class="topbar-model-pill" style="border-color:rgba(224,92,92,0.3);color:var(--color-error);background:var(--color-error-bg);">
+      <span style="width:6px;height:6px;border-radius:9999px;background:var(--color-error);display:inline-block;" aria-hidden="true"></span>
+      No model deployed
+    </span>
+  {% endif %}
+{% endblock %}
+
+{% block admin_content %}
+
+  {# ── Welcome header ────────────────────────────────────────────────────── #}
+  <div style="margin-bottom: var(--space-8);">
+    <h2 style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--color-text-1);letter-spacing:var(--tracking-tight);margin-bottom:var(--space-1);">
+      Good to see you, {{ admin.username }}.
+    </h2>
+    <p style="font-size:var(--text-sm);color:var(--color-text-3);">
+      Here's what's happening with MoneyTalks right now.
+    </p>
+  </div>
+
+  {# ── Warning if no model is deployed ──────────────────────────────────── #}
+  {% if not active_model %}
+    <div style="
+      padding: var(--space-5) var(--space-6);
+      background: var(--color-error-bg);
+      border: 1px solid var(--color-error-border);
+      border-left: 3px solid var(--color-error);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-8);
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+    " role="alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="22" height="22" style="color:var(--color-error);flex-shrink:0;" aria-hidden="true">
+        <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <p style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--color-error);margin-bottom:2px;">No model deployed</p>
+        <p style="font-size:var(--text-sm);color:var(--color-text-2);">
+          The guest detection page will not function until a model is deployed.
+          <a href="{{ url_for('auth.models') }}" style="color:var(--color-gold);text-decoration:underline;">Upload and deploy a model →</a>
+        </p>
+      </div>
+    </div>
+  {% endif %}
+
+  {# ── Stats grid ────────────────────────────────────────────────────────── #}
+  <div class="grid-3" style="margin-bottom:var(--space-10);" role="list" aria-label="System statistics">
+
+    {# Stat 1: Total scans #}
+    <article class="stat-card" role="listitem">
+      <div class="stat-card__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
+          <path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M13.5 12a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <p class="stat-card__label">Total Scans</p>
+      <p class="stat-card__value">
+        {% if scan_count == "N/A" %}
+          <span style="font-size:var(--text-xl);color:var(--color-text-3);">N/A</span>
+        {% else %}
+          {{ "{:,}".format(scan_count) }}
+        {% endif %}
+      </p>
+      <p class="stat-card__sub">Banknotes scanned by all users</p>
+    </article>
+
+    {# Stat 2: Active model version #}
+    <article class="stat-card" role="listitem">
+      <div class="stat-card__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
+          <path d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <p class="stat-card__label">Active Model</p>
+      <p class="stat-card__value stat-card__value--mono">
+        {% if active_model %}
+          v{{ active_model.version }}
+        {% else %}
+          <span style="font-size:var(--text-xl);color:var(--color-error);">None</span>
+        {% endif %}
+      </p>
+      <p class="stat-card__sub">
+        {% if active_model %}
+          Deployed {{ active_model.uploaded_at.strftime('%d %b %Y') }}
+        {% else %}
+          No model currently active
+        {% endif %}
+      </p>
+    </article>
+
+    {# Stat 3: Model ID #}
+    <article class="stat-card" role="listitem">
+      <div class="stat-card__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
+          <path d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L9.568 3z" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6 6h.008v.008H6V6z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <p class="stat-card__label">Model ID</p>
+      <p class="stat-card__value stat-card__value--mono" style="font-size:var(--text-xl);">
+        {% if active_model %}
+          {{ active_model.model_id }}
+        {% else %}
+          —
+        {% endif %}
+      </p>
+      <p class="stat-card__sub">Supabase Storage reference</p>
+    </article>
+
+  </div>
+
+  {# ── Quick actions ──────────────────────────────────────────────────────── #}
+  <div class="section-header">
+    <div>
+      <p class="section-header__title">Quick Actions</p>
+      <p class="section-header__sub">Common tasks for managing MoneyTalks</p>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:var(--space-10);">
+
+    {# Action: Browse scanned images #}
+    <a href="{{ url_for('auth.images') }}" class="stat-card" style="text-decoration:none;display:flex;align-items:flex-start;gap:var(--space-4);padding:var(--space-5) var(--space-6);">
+      <div class="stat-card__icon" style="margin-bottom:0;flex-shrink:0;" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
+          <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <p style="font-size:var(--text-base);font-weight:var(--weight-semibold);color:var(--color-text-1);margin-bottom:var(--space-1);">Download Scanned Images</p>
+        <p style="font-size:var(--text-sm);color:var(--color-text-3);">Filter by date and export a ZIP archive of collected banknote frames.</p>
+      </div>
+    </a>
+
+    {# Action: Manage model versions #}
+    <a href="{{ url_for('auth.models') }}" class="stat-card" style="text-decoration:none;display:flex;align-items:flex-start;gap:var(--space-4);padding:var(--space-5) var(--space-6);">
+      <div class="stat-card__icon" style="margin-bottom:0;flex-shrink:0;" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
+          <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <p style="font-size:var(--text-base);font-weight:var(--weight-semibold);color:var(--color-text-1);margin-bottom:var(--space-1);">Upload New Model</p>
+        <p style="font-size:var(--text-sm);color:var(--color-text-3);">Upload a new .pkl model file and deploy it with zero downtime.</p>
+      </div>
+    </a>
+
+  </div>
+
+  {# ── System status footer ─────────────────────────────────────────────── #}
+  <div style="
+    padding: var(--space-5) var(--space-6);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+  " role="contentinfo" aria-label="System information">
+    <div style="display:flex;align-items:center;gap:var(--space-3);">
+      <span style="width:8px;height:8px;border-radius:9999px;background:var(--color-success);display:inline-block;flex-shrink:0;" aria-hidden="true"></span>
+      <span style="font-size:var(--text-sm);color:var(--color-text-2);font-weight:var(--weight-medium);">All systems operational</span>
+    </div>
+    <div style="display:flex;gap:var(--space-6);">
+      <span style="font-size:var(--text-xs);color:var(--color-text-3);font-family:var(--font-mono);">
+        Database: Supabase PostgreSQL
+      </span>
+      <span style="font-size:var(--text-xs);color:var(--color-text-3);font-family:var(--font-mono);">
+        Storage: Supabase Storage
+      </span>
+    </div>
+  </div>
+
+{% endblock %}

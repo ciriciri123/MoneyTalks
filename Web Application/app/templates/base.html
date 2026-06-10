@@ -1,0 +1,150 @@
+{#
+  app/templates/base.html — Root Base Template
+  ============================================
+  Every page in MoneyTalks (guest AND admin) extends this template.
+  It provides:
+    - <html> structure, viewport meta, charset
+    - Google Fonts preconnect (performance)
+    - base.css (global design system)
+    - Flash message container + rendering
+    - Page-title block
+    - Head/body extension blocks for child templates
+
+  Template hierarchy:
+    base.html
+    ├── admin/base_admin.html   ← all authenticated admin pages
+    │   ├── admin/dashboard.html
+    │   ├── admin/images.html   (future)
+    │   └── admin/models.html   (future)
+    ├── admin/login.html        ← login page (does NOT use admin layout)
+    └── guest/index.html        ← guest detection page (future)
+
+  Blocks exposed to child templates:
+    {% block title %}      — <title> tag content (default: "MoneyTalks")
+    {% block extra_head %} — additional <link>/<meta> tags in <head>
+    {% block body_class %} — CSS class(es) on the <body> element
+    {% block content %}    — main page content (replaces everything inside <body>)
+    {% block extra_scripts %} — <script> </script>
+#}
+
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />  {# Admin tool — never index #}
+  <meta name="theme-color" content="#090D18" />
+
+  <title>{% block title %}MoneyTalks{% endblock %}</title>
+
+  {# ── Google Fonts: preconnect for performance ────────────────────────────── #}
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com"    crossorigin />
+
+  {# ── Global design system ────────────────────────────────────────────────── #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
+
+  {# ── Favicon (inline SVG data URL — no extra file needed) ───────────────── #}
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23D4A843'/><text x='50%' y='56%' text-anchor='middle' dominant-baseline='middle' font-size='18' font-family='Georgia,serif' fill='%230B0F19' font-weight='bold'>₩</text></svg>" />
+
+  {# ── Child templates inject additional CSS here ───────────────────────────── #}
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body class="{% block body_class %}{% endblock %}">
+
+  {#
+    Flash message container
+    =======================
+    Flask's flash() stores messages in the session.
+    get_flashed_messages(with_categories=True) pops them (one-time display).
+
+    Categories mapped to CSS modifier classes:
+      "error"   → flash-alert--error
+      "success" → flash-alert--success
+      "info"    → flash-alert--info
+      "warning" → flash-alert--warning
+
+    JS in base.js (loaded globally) handles auto-dismiss.
+    Rendered in base.html so ALL pages (login, dashboard, etc.) show flashes.
+  #}
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+      <div class="flash-container" role="region" aria-label="Notifications" aria-live="assertive">
+        {% for category, message in messages %}
+          <div
+            class="flash-alert flash-alert--{{ category }}"
+            role="alert"
+            data-flash-alert
+          >
+            {# Icon varies by category #}
+            <span class="flash-alert__icon" aria-hidden="true">
+              {% if category == 'error' %}
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                </svg>
+              {% elif category == 'success' %}
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+              {% elif category == 'warning' %}
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+              {% else %}
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+              {% endif %}
+            </span>
+            <span class="flash-alert__text">{{ message }}</span>
+            <button
+              class="flash-alert__close"
+              aria-label="Dismiss notification"
+              data-flash-close
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {# ── Main page content ────────────────────────────────────────────────────── #}
+  {% block content %}{% endblock %}
+
+  {# ── Global JS (flash dismiss logic lives here; loaded on every page) ──────── #}
+  <script>
+    /*
+     * Inline flash-dismiss bootstrap.
+     * A minimal version of the flash logic is inlined here so it works
+     * even without the page-specific JS file loading.
+     * The full implementation is in login.js and admin.js.
+     */
+    (function() {
+      var AUTO_MS = 5000;
+      document.querySelectorAll('[data-flash-alert]').forEach(function(el) {
+        var timer = setTimeout(function() { dismissFlash(el); }, AUTO_MS);
+        var btn   = el.querySelector('[data-flash-close]');
+        if (btn) btn.addEventListener('click', function() {
+          clearTimeout(timer);
+          dismissFlash(el);
+        });
+      });
+      function dismissFlash(el) {
+        if (el.dataset.dismissed) return;
+        el.dataset.dismissed = '1';
+        el.classList.add('is-hiding');
+        el.addEventListener('animationend', function() { el.remove(); }, { once: true });
+      }
+    })();
+  </script>
+
+  {# ── Page-specific scripts injected by child templates ─────────────────────── #}
+  {% block extra_scripts %}{% endblock %}
+
+</body>
+</html>

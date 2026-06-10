@@ -1,6 +1,10 @@
 # Python compiled files
 __pycache__/
-*.pyc
+Web Application/*.pyc
 
 # Dataset
-data/
+Web Application/data/
+
+Web Application/.env
+Web Application/.venv
+Web Application/__pycache__

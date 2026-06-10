@@ -1,0 +1,286 @@
+{#
+  app/templates/admin/login.html — Admin Login Page
+  ===================================================
+  Renders the full-viewport login experience.
+
+  IMPORTANT: This template extends base.html — NOT base_admin.html.
+  The sidebar layout must NOT be shown on the login page (no authenticated user yet).
+
+  Template context (available from auth.py's login() route):
+    None — the login page receives no server-side context.
+    Flash messages (from failed login or logout) are pulled automatically
+    by base.html via get_flashed_messages().
+
+  Form behaviour:
+    - GET  /admin/login → renders this page
+    - POST /admin/login → processed by auth.py's login() route
+    - On success: redirects to /admin/dashboard
+    - On failure: re-renders this page + adds flash("...", "error")
+    - Rate limited: 5 POST attempts per minute per IP (Flask-Limiter in auth.py)
+    - CSRF protected: csrf_token() hidden input required (Flask-WTF)
+
+  Accessibility:
+    - <form> has a descriptive aria-label
+    - Required fields use aria-required and <abbr title="required">
+    - Error hints are linked via aria-describedby (populated by login.js)
+    - Loading state announced via aria-label change on the submit button
+    - <main> landmark wraps the form panel for screen reader navigation
+
+  JavaScript:
+    login.js handles: client-side validation, password toggle, loading state,
+    flash auto-dismiss. Form works correctly without JS (progressive enhancement).
+#}
+{% extends "base.html" %}
+
+{% block title %}Sign In — MoneyTalks Admin{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/login.css') }}" />
+{% endblock %}
+
+{% block body_class %}login-body{% endblock %}
+
+{% block content %}
+
+<div class="login-page">
+
+  {# ═══════════════════════════════════════════════════════════════════════
+     LEFT — BRAND PANEL
+     (hidden on mobile; visible on screens > 900px via CSS)
+     ═══════════════════════════════════════════════════════════════════ #}
+  <aside class="login-brand" aria-hidden="true">  {# aria-hidden: decorative panel #}
+
+    {# Top: Logo + tagline #}
+    <div class="brand-top">
+      <div class="brand-logo">
+        <div class="brand-logo__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="26" height="26">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 7v1m0 8v1M9.5 10a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5m0 0H12" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="brand-logo__wordmark">
+          <span class="brand-logo__name"><span>Money</span>Talks</span>
+          <span class="brand-logo__portal">Admin Portal</span>
+        </div>
+      </div>
+
+      <p class="brand-tagline">
+        The management interface for <strong>real-time banknote recognition</strong>.
+        Built for the people who keep the system running.
+      </p>
+    </div>
+
+    {# Middle: Feature highlights #}
+    <div class="brand-features" role="list">
+
+      <div class="brand-feature" role="listitem">
+        <div class="brand-feature__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16">
+            <path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M13.5 12a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <p class="brand-feature__text">Browse and download all scanned banknote images</p>
+      </div>
+
+      <div class="brand-feature" role="listitem">
+        <div class="brand-feature__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16">
+            <path d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <p class="brand-feature__text">Deploy new ML model versions with zero downtime</p>
+      </div>
+
+      <div class="brand-feature" role="listitem">
+        <div class="brand-feature__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16">
+            <path d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <p class="brand-feature__text">Secured with bcrypt password hashing and session tokens</p>
+      </div>
+
+    </div>
+
+    {# Bottom: System metadata #}
+    <div class="brand-meta" role="contentinfo">
+      <div class="brand-meta__item">
+        <span class="brand-meta__dot"></span>
+        System operational
+      </div>
+      <div class="brand-meta__item">
+        MoneyTalks v2.0 · Supabase backend
+      </div>
+    </div>
+
+  </aside>
+
+  {# ═══════════════════════════════════════════════════════════════════════
+     RIGHT — FORM PANEL
+     ═══════════════════════════════════════════════════════════════════ #}
+  <main class="login-form-panel" id="main-content">
+
+    {# Mobile-only compact brand header (brand panel hidden on small screens) #}
+    <div class="login-mobile-brand" aria-hidden="true">
+      <div class="brand-logo__icon" style="width:40px;height:40px;flex-shrink:0;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20" color="var(--color-gold)">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v1m0 8v1M9.5 10a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5m0 0H12" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span style="font-family:var(--font-display);font-size:var(--text-xl);color:var(--color-text-1);">
+        <span style="color:var(--color-gold);">Money</span>Talks
+      </span>
+    </div>
+
+    <div class="login-form-wrapper">
+
+      {# Form header #}
+      <div class="login-form-header">
+        <h1 class="login-form-header__title">Welcome back</h1>
+        <p class="login-form-header__sub">Sign in to access the admin portal.</p>
+      </div>
+
+      {#
+        Login form
+        ==========
+        action → POST /admin/login (auth_bp route with url_prefix="/admin")
+        method → POST (NEVER GET — credentials must not appear in URL/logs)
+
+        Security:
+          csrf_token  — Flask-WTF validates this on the server. Without it,
+                        the POST will return 400 Bad Request.
+          autocomplete — "username" + "current-password" is the recommended
+                        pattern for password managers and browser autofill.
+          data-login-* — attributes targeted by login.js (not CSS classes)
+      #}
+      <form
+        action="{{ url_for('auth.login') }}"
+        method="POST"
+        class="login-form"
+        id="loginForm"
+        novalidate
+        aria-label="Admin sign-in form"
+        data-login-form
+      >
+        {# CSRF token — Flask-WTF requires this on every state-changing POST #}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        {# ── Email field ──────────────────────────────────────────────── #}
+        <div class="form-field" id="field-email">
+          <label class="form-field__label" for="email">
+            Email address
+            <abbr title="required" aria-label="required">*</abbr>
+          </label>
+          <div class="form-field__input-wrap">
+            <input
+              type="email"
+              id="email"
+              name="email"
+              class="form-field__input"
+              placeholder="admin@moneytalks.id"
+              autocomplete="username"
+              required
+              aria-required="true"
+              spellcheck="false"
+              autocapitalize="none"
+              data-login-email
+            />
+          </div>
+          {#
+            Error hint — hidden by default (height: 0 via CSS).
+            login.js sets .is-invalid on .form-field to reveal it.
+            The ID is used for aria-describedby on the input (set by JS).
+          #}
+          <span class="form-field__error" id="email-error" role="alert" aria-live="polite">
+            <svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+              <path d="M6 0C2.69 0 0 2.69 0 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm.75 9H5.25V7.5h1.5V9zm0-3H5.25V3h1.5v3z"/>
+            </svg>
+            <span data-error-text></span>
+          </span>
+        </div>
+
+        {# ── Password field ───────────────────────────────────────────── #}
+        <div class="form-field" id="field-password">
+          <label class="form-field__label" for="password">
+            Password
+            <abbr title="required" aria-label="required">*</abbr>
+          </label>
+          <div class="form-field__input-wrap form-field__input-wrap--has-toggle">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="form-field__input"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+              aria-required="true"
+              data-login-password
+            />
+            {# Password visibility toggle — accessible show/hide button #}
+            <button
+              type="button"
+              class="form-field__toggle-pw"
+              aria-label="Show password"
+              aria-pressed="false"
+              tabindex="0"
+              data-login-pw-toggle
+            >
+              {# Eye-open icon (shown when password is hidden) #}
+              <span data-icon-show>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16" aria-hidden="true">
+                  <path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              {# Eye-closed icon (shown when password is visible) #}
+              <span data-icon-hide hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16" aria-hidden="true">
+                  <path d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            </button>
+          </div>
+          <span class="form-field__error" id="password-error" role="alert" aria-live="polite">
+            <svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+              <path d="M6 0C2.69 0 0 2.69 0 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm.75 9H5.25V7.5h1.5V9zm0-3H5.25V3h1.5v3z"/>
+            </svg>
+            <span data-error-text></span>
+          </span>
+        </div>
+
+        {# ── Submit button ────────────────────────────────────────────── #}
+        <button
+          type="submit"
+          class="login-submit"
+          aria-label="Sign in"
+          data-login-submit
+        >
+          {# Content div: text visible during normal state #}
+          <span class="login-submit__content">Sign in</span>
+          {# Spinner: shown by JS when .is-loading is added to the button #}
+          <span class="login-submit__spinner" aria-hidden="true"></span>
+        </button>
+
+      </form>
+
+      {# ── Form footer: help text ────────────────────────────────────── #}
+      <div class="login-form-footer">
+        <p class="login-form-footer__text">
+          Access is restricted to registered administrators.<br />
+          Contact your system administrator if you need assistance.
+        </p>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{{ url_for('static', filename='js/admin/login.js') }}" defer></script>
+{% endblock %}

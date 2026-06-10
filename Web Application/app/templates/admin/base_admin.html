@@ -1,0 +1,277 @@
+{#
+  app/templates/admin/base_admin.html — Admin Portal Layout Shell
+  ===============================================================
+  All AUTHENTICATED admin pages extend this template (not base.html directly).
+  It provides the persistent two-column layout: sidebar navigation + main area.
+
+  Template hierarchy:
+    base.html
+    └── admin/base_admin.html   ← YOU ARE HERE
+        ├── admin/dashboard.html
+        ├── admin/images.html   (future)
+        └── admin/models.html   (future)
+
+  Context variables available in ALL admin templates (injected by auth.py routes):
+    {{ admin }}         — current AdminUser (Flask-Login current_user)
+    {{ admin.username }} — display name
+    {{ admin.email }}   — email address
+
+  Blocks exposed to child templates:
+    {% block page_title %}  — text inside the topbar (e.g. "Dashboard")
+    {% block topbar_right %} — optional controls to the right of the topbar title
+    {% block content %}     — the main page-specific content inside .admin-content
+    {% block extra_head %}  — additional CSS links in <head>
+    {% block extra_scripts %} — scripts before </body>
+
+  Adding new navigation items:
+    Add a new <a class="sidebar-nav__item"> inside .sidebar-nav in this file.
+    Use the Jinja2 check `request.endpoint == 'auth.my_route'` to apply is-active.
+    Use the .sidebar-nav__badge element for "Coming soon" or count badges.
+
+  Sidebar state (mobile open/close):
+    JS in admin.js toggles .is-open on .admin-sidebar and .is-visible on
+    .admin-sidebar-backdrop when the hamburger button is clicked.
+#}
+{% extends "base.html" %}
+
+{% block extra_head %}
+  {# Admin layout CSS (sidebar, topbar, content area, shared components) #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin.css') }}" />
+  {# Page-specific CSS injected by child templates #}
+  {% block admin_extra_head %}{% endblock %}
+{% endblock %}
+
+{% block body_class %}admin-body{% endblock %}
+
+{% block content %}
+
+{# Mobile sidebar backdrop overlay #}
+<div class="admin-sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
+
+<div class="admin-layout">
+
+  {# ═══════════════════════════════════════════════════════════════════════
+     SIDEBAR
+     ═══════════════════════════════════════════════════════════════════ #}
+  <aside class="admin-sidebar" id="adminSidebar" role="navigation" aria-label="Admin navigation">
+
+    {# ── Brand ─────────────────────────────────────────────────────── #}
+    <a href="{{ url_for('auth.dashboard') }}" class="sidebar-brand" aria-label="MoneyTalks Admin — go to dashboard">
+      <div class="sidebar-brand__icon" aria-hidden="true">
+        {# Coin / currency icon SVG #}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v1m0 8v1M9.5 10a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5m0 0H12" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="sidebar-brand__wordmark">
+        <span class="sidebar-brand__name">
+          <span>Money</span>Talks
+        </span>
+        <span class="sidebar-brand__label">Admin Portal</span>
+      </div>
+    </a>
+
+    {# ── Navigation ────────────────────────────────────────────────── #}
+    <nav class="sidebar-nav" aria-label="Main navigation">
+
+      <span class="sidebar-nav__section-label">Main</span>
+
+      {# Dashboard #}
+      <a
+        href="{{ url_for('auth.dashboard') }}"
+        class="sidebar-nav__item {% if request.endpoint == 'auth.dashboard' %}is-active{% endif %}"
+        aria-current="{% if request.endpoint == 'auth.dashboard' %}page{% endif %}"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="9" rx="1.5"/>
+          <rect x="14" y="3" width="7" height="5" rx="1.5"/>
+          <rect x="14" y="12" width="7" height="9" rx="1.5"/>
+          <rect x="3" y="16" width="7" height="5" rx="1.5"/>
+        </svg>
+        Dashboard
+      </a>
+
+      <span class="sidebar-nav__section-label" style="margin-top: var(--space-2);">Data</span>
+
+      {# Scanned Images #}
+      <a
+        href="{{ url_for('auth.images') }}"
+        class="sidebar-nav__item {% if request.endpoint == 'auth.images' %}is-active{% endif %}"
+        aria-current="{% if request.endpoint == 'auth.images' %}page{% endif %}"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>
+        Scanned Images
+      </a>
+
+      {# Model Versions #}
+      <a
+        href="{{ url_for('auth.models') }}"
+        class="sidebar-nav__item {% if request.endpoint == 'auth.models' %}is-active{% endif %}"
+        aria-current="{% if request.endpoint == 'auth.models' %}page{% endif %}"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125"/>
+        </svg>
+        Model Versions
+      </a>
+
+      {#
+        ── Placeholder for future navigation items ───────────────────────
+        When adding new admin features, insert <a class="sidebar-nav__item">
+        elements here. The sidebar layout handles them automatically.
+        Example (commented out):
+
+        <span class="sidebar-nav__section-label">System</span>
+        <a href="#" class="sidebar-nav__item">
+          <svg>...</svg>
+          Settings
+          <span class="sidebar-nav__badge">Soon</span>
+        </a>
+      #}
+
+    </nav>
+
+    {# ── Footer: admin identity + logout ──────────────────────────── #}
+    <div class="sidebar-footer">
+
+      {# Admin identity card #}
+      <div class="sidebar-footer__admin" aria-label="Logged in as {{ admin.username }}">
+        <div class="sidebar-footer__avatar" aria-hidden="true">
+          {{ admin.username[0] | upper }}
+        </div>
+        <div class="sidebar-footer__info">
+          <p class="sidebar-footer__name">{{ admin.username }}</p>
+          <p class="sidebar-footer__email">{{ admin.email }}</p>
+        </div>
+      </div>
+
+      {#
+        Logout form (POST with CSRF token)
+        ===================================
+        - Uses POST (not a GET link) to prevent CSRF attacks and browser
+          prefetch from triggering logout accidentally.
+        - Flask-WTF automatically validates the csrf_token on the server.
+        - The btn-logout class is styled in admin.css.
+      #}
+      <form
+        action="{{ url_for('auth.logout') }}"
+        method="POST"
+        class="logout-form"
+        id="logoutForm"
+        aria-label="Sign out"
+      >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <button type="submit" class="btn-logout" aria-label="Sign out of admin portal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Sign Out
+        </button>
+      </form>
+
+    </div>
+  </aside>
+
+  {# ═══════════════════════════════════════════════════════════════════════
+     MAIN AREA
+     ═══════════════════════════════════════════════════════════════════ #}
+  <main class="admin-main" id="adminMain">
+
+    {# ── Top bar ─────────────────────────────────────────────────────── #}
+    <header class="admin-topbar" role="banner">
+      <div class="admin-topbar__left">
+
+        {# Mobile hamburger toggle (hidden on desktop via CSS) #}
+        <button
+          class="admin-mobile-toggle"
+          id="sidebarToggle"
+          aria-label="Open navigation menu"
+          aria-controls="adminSidebar"
+          aria-expanded="false"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/>
+          </svg>
+        </button>
+
+        {# Page title — child templates override this block #}
+        <h1 class="admin-topbar__page-title">
+          {% block page_title %}Dashboard{% endblock %}
+        </h1>
+
+      </div>
+
+      <div class="admin-topbar__right">
+        {# Active model version pill #}
+        {% block topbar_right %}{% endblock %}
+
+        {# Default: show active model in every topbar #}
+        {# This context var is available if routes pass it; auth.py dashboard does #}
+        {# Child templates can override topbar_right entirely #}
+      </div>
+    </header>
+
+    {# ── Page content ────────────────────────────────────────────────── #}
+    <div class="admin-content">
+      {% block admin_content %}{% endblock %}
+    </div>
+
+  </main>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+  {% block admin_extra_scripts %}{% endblock %}
+  {#
+    Sidebar mobile toggle script.
+    Inlined here (not in a separate file) because it's a tiny, universal
+    admin behaviour. A full admin.js file can be added here when needed.
+  #}
+  <script>
+    (function() {
+      var sidebar   = document.getElementById('adminSidebar');
+      var backdrop  = document.getElementById('sidebarBackdrop');
+      var toggle    = document.getElementById('sidebarToggle');
+
+      if (!sidebar || !backdrop || !toggle) return;
+
+      function openSidebar() {
+        sidebar.classList.add('is-open');
+        backdrop.classList.add('is-visible');
+        toggle.setAttribute('aria-expanded', 'true');
+        toggle.setAttribute('aria-label', 'Close navigation menu');
+        backdrop.removeAttribute('aria-hidden');
+        // Trap focus inside sidebar when open (accessibility)
+        sidebar.focus();
+      }
+
+      function closeSidebar() {
+        sidebar.classList.remove('is-open');
+        backdrop.classList.remove('is-visible');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-label', 'Open navigation menu');
+        backdrop.setAttribute('aria-hidden', 'true');
+        toggle.focus();
+      }
+
+      toggle.addEventListener('click', function() {
+        sidebar.classList.contains('is-open') ? closeSidebar() : openSidebar();
+      });
+
+      backdrop.addEventListener('click', closeSidebar);
+
+      // Close on Escape key
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && sidebar.classList.contains('is-open')) {
+          closeSidebar();
+        }
+      });
+    })();
+  </script>
+{% endblock %}

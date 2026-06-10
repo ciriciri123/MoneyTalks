@@ -1,0 +1,513 @@
+/*
+ * app/static/css/admin/login.css — Admin Login Page Styles
+ * =========================================================
+ * Loaded ONLY on the login page (admin/login.html extends base.html,
+ * NOT base_admin.html — the sidebar layout is absent on the login page).
+ *
+ * Layout: Two-column split on desktop.
+ *   Left panel  (40%): Brand identity — logo, tagline, currency pattern
+ *   Right panel (60%): Login form — email, password, submit
+ *
+ * On mobile: single column, form only (brand panel hidden).
+ *
+ * Design notes:
+ *   - Gold (#D4A843) is the only accent colour on a dark-on-dark palette.
+ *   - The brand panel background uses a subtle SVG currency-grid pattern.
+ *   - No glass-morphism: solid surfaces for WCAG AA contrast compliance.
+ *   - All form states (default, focus, error, loading) are explicitly styled.
+ */
+
+/* ==========================================================================
+   LOGIN PAGE LAYOUT
+   ========================================================================== */
+
+.login-page {
+  display: grid;
+  grid-template-columns: 5fr 7fr;  /* 42% brand / 58% form */
+  min-height: 100vh;
+}
+
+/* ==========================================================================
+   LEFT — BRAND PANEL
+   ========================================================================== */
+
+.login-brand {
+  position: relative;
+  background: var(--color-surface);
+  border-right: var(--border-width) solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-10) var(--space-10);
+  overflow: hidden;
+}
+
+/* Geometric currency-grid background pattern */
+.login-brand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(
+      rgba(212,168,67,0.04) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(212,168,67,0.04) 1px,
+      transparent 1px
+    );
+  background-size: 48px 48px;
+  background-position: center center;
+  z-index: 0;
+}
+
+/* Radial vignette to fade grid at edges */
+.login-brand::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 30% 50%,
+    transparent 40%,
+    var(--color-surface) 100%
+  );
+  z-index: 1;
+}
+
+.login-brand > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Top section: Logo + tagline ──────────────────────────────────────────── */
+
+.brand-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.brand-logo__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-lg);
+  background: var(--color-gold-dim);
+  border: 1px solid rgba(212,168,67,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 30px rgba(212,168,67,0.10);
+}
+
+.brand-logo__icon svg {
+  width: 26px;
+  height: 26px;
+  color: var(--color-gold);
+}
+
+.brand-logo__wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-logo__name {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-1);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.brand-logo__name span {
+  color: var(--color-gold);
+}
+
+.brand-logo__portal {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-3);
+}
+
+/* Tagline */
+.brand-tagline {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-light);
+  color: var(--color-text-2);
+  line-height: var(--leading-relaxed);
+  max-width: 28ch;
+}
+
+.brand-tagline strong {
+  color: var(--color-text-1);
+  font-weight: var(--weight-semibold);
+}
+
+/* ── Feature list ──────────────────────────────────────────────────────────── */
+
+.brand-features {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.brand-feature {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.brand-feature__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brand-feature__icon svg {
+  width: 16px;
+  height: 16px;
+  color: var(--color-gold);
+}
+
+.brand-feature__text {
+  font-size: var(--text-sm);
+  color: var(--color-text-2);
+  line-height: var(--leading-normal);
+}
+
+/* ── Bottom: metadata ─────────────────────────────────────────────────────── */
+
+.brand-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.brand-meta__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-3);
+  font-family: var(--font-mono);
+}
+
+.brand-meta__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--color-success);
+}
+
+/* ==========================================================================
+   RIGHT — FORM PANEL
+   ========================================================================== */
+
+.login-form-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-16);
+  background: var(--color-bg);
+}
+
+/* ── Form wrapper ─────────────────────────────────────────────────────────── */
+
+.login-form-wrapper {
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-form-header {
+  margin-bottom: var(--space-10);
+}
+
+.login-form-header__title {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-1);
+  letter-spacing: var(--tracking-tight);
+  margin-bottom: var(--space-2);
+}
+
+.login-form-header__sub {
+  font-size: var(--text-base);
+  color: var(--color-text-2);
+  line-height: var(--leading-normal);
+}
+
+/* ── The form itself ─────────────────────────────────────────────────────── */
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ── Form field ──────────────────────────────────────────────────────────── */
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form-field__label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-2);
+  letter-spacing: 0.01em;
+}
+
+/* Required asterisk */
+.form-field__label abbr {
+  color: var(--color-error);
+  text-decoration: none;
+  margin-left: 2px;
+}
+
+/* Input wrapper (holds input + optional icon + password toggle) */
+.form-field__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* The input element */
+.form-field__input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: var(--weight-regular);
+  color: var(--color-text-1);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+              background var(--transition-fast);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.form-field__input::placeholder {
+  color: var(--color-text-3);
+}
+
+/* Focus state */
+.form-field__input:focus {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px var(--color-gold-dim);
+  background: var(--color-surface-2);
+}
+
+/* Invalid state (set via JS class on parent .form-field) */
+.form-field.is-invalid .form-field__input {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px var(--color-error-bg);
+}
+
+/* Password visibility toggle button (positioned inside input wrap) */
+.form-field__toggle-pw {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.form-field__toggle-pw:hover {
+  color: var(--color-text-1);
+  background: var(--color-surface-2);
+}
+
+.form-field__toggle-pw svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Pad input-right so text doesn't overlap the toggle button */
+.form-field__input-wrap--has-toggle .form-field__input {
+  padding-right: var(--space-10);
+}
+
+/* Error hint text below the input */
+.form-field__error {
+  font-size: var(--text-xs);
+  color: var(--color-error);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: height var(--transition-normal), opacity var(--transition-normal);
+}
+
+.form-field.is-invalid .form-field__error {
+  height: 18px;
+  opacity: 1;
+}
+
+.form-field__error svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+/* ── Submit button ─────────────────────────────────────────────────────────── */
+
+.login-submit {
+  width: 100%;
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-gold);
+  color: #0B0F19;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast),
+              transform var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  margin-top: var(--space-2);
+}
+
+.login-submit:hover:not(:disabled) {
+  background: var(--color-gold-light);
+  box-shadow: 0 4px 24px rgba(212,168,67,0.35);
+  transform: translateY(-1px);
+}
+
+.login-submit:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.login-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Loading state: spinner replaces text */
+.login-submit__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  transition: opacity var(--transition-fast);
+}
+
+.login-submit__spinner {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(11,15,25,0.3);
+  border-top-color: #0B0F19;
+  border-radius: var(--radius-full);
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* JS adds .is-loading to the button → show spinner, hide text */
+.login-submit.is-loading .login-submit__content {
+  opacity: 0;
+}
+
+.login-submit.is-loading .login-submit__spinner {
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ── Form footer ──────────────────────────────────────────────────────────── */
+
+.login-form-footer {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: var(--border-width) solid var(--color-border);
+  text-align: center;
+}
+
+.login-form-footer__text {
+  font-size: var(--text-xs);
+  color: var(--color-text-3);
+  line-height: var(--leading-relaxed);
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+
+  /* Hide the brand panel on small screens — show form only */
+  .login-brand {
+    display: none;
+  }
+
+  .login-form-panel {
+    padding: var(--space-8) var(--space-6);
+    justify-content: flex-start;
+    padding-top: var(--space-16);
+  }
+
+  /* Show a compact brand header above the form on mobile */
+  .login-mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-10);
+  }
+}
+
+@media (min-width: 901px) {
+  .login-mobile-brand {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-form-panel {
+    padding: var(--space-6) var(--space-5);
+    padding-top: var(--space-12);
+  }
+}
