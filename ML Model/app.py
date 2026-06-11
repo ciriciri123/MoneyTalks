@@ -54,12 +54,13 @@ def detect():
         "confidence": confidence,
         "raw_label": label
     }
-    if "box" in result:
-        response_data["box"] = result["box"]
-    
     if confidence >= 0.75:
         response_data['message'] = friendly_label
         response_data['valid'] = True
+        
+        if "box" in result:
+            response_data["box"] = result["box"]
+            
     else:
         response_data['message'] = "Tolong dekatkan uang ke kamera"
         response_data['valid'] = False

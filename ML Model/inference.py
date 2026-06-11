@@ -54,8 +54,9 @@ def _extract_denom_candidates(cleaned_text):
     if not cleaned_text: return []
     tokens = re.findall(r'\d+', cleaned_text)
     if not tokens: return []
+    token_set = set(tokens)
     candidates = set(tokens)
-    max_window = min(6, len(tokens))
+    max_window = min(4, len(tokens))
     for window in range(2, max_window + 1):
         for i in range(len(tokens) - window + 1):
             merged = ''.join(tokens[i:i + window])
@@ -70,7 +71,8 @@ def _extract_denom_candidates(cleaned_text):
             (other != denom and len(other) > len(denom) and other.startswith(denom))
             for other in matched
         )
-        if not overshadowed:
+        is_direct_token = denom in token_set
+        if not overshadowed or is_direct_token:
             filtered.append(denom)
     return filtered
 
@@ -79,7 +81,7 @@ def _extract_fuzzy_denom_scores(cleaned_text):
     tokens = re.findall(r'\d+', cleaned_text)
     if not tokens: return {}
     candidates = set(tokens)
-    max_window = min(6, len(tokens))
+    max_window = min(4, len(tokens))
     for window in range(2, max_window + 1):
         for i in range(len(tokens) - window + 1):
             candidates.add(''.join(tokens[i:i + window]))
@@ -88,25 +90,23 @@ def _extract_fuzzy_denom_scores(cleaned_text):
         if len(cand) < 4 or len(cand) > 6: continue
         for denom in DENOMINATION_KEYS:
             if abs(len(cand) - len(denom)) > 1: continue
+            if denom.startswith(cand) or cand.startswith(denom):
+                continue
             dist = _levenshtein_distance(cand, denom)
             if dist == 1:
-                fuzzy_scores[denom] += 0.85
+                if len(cand) == len(denom) and cand[1:] == denom[1:]:
+                    continue
+                fuzzy_scores[denom] += 0.50
             elif dist == 2 and len(denom) >= 5:
-                fuzzy_scores[denom] += 0.35
+                fuzzy_scores[denom] += 0.20
     return dict(fuzzy_scores)
 
 def _get_ocr_rois(zoom_ocr):
     h, w = zoom_ocr.shape[:2]
-    left_roi = zoom_ocr[:, :int(w * 0.55)]
-    right_roi = zoom_ocr[:, int(w * 0.45):]
     center_roi = zoom_ocr[int(h * 0.20):int(h * 0.80), int(w * 0.20):int(w * 0.80)]
-    top_left_roi = zoom_ocr[:int(h * 0.50), :int(w * 0.45)]
     return [
         ("full", zoom_ocr),
-        ("left", left_roi),
-        ("right", right_roi),
-        ("center", center_roi),
-        ("top_left", top_left_roi)
+        ("center", center_roi)
     ]
 
 def _denom_from_label(label):
@@ -115,17 +115,14 @@ def _denom_from_label(label):
 
 def _predict_with_ocr(ocr_crop):
     h_ocr, w_ocr = ocr_crop.shape[:2]
-    zoom_factor = 3 if max(h_ocr, w_ocr) < 600 else 2
+    zoom_factor = 2 
     zoom_ocr = cv2.resize(
         ocr_crop,
         (w_ocr * zoom_factor, h_ocr * zoom_factor),
-        interpolation=cv2.INTER_CUBIC
+        interpolation=cv2.INTER_LINEAR
     )
     
-    ocr_configs = [
-        '--psm 6',
-        '--psm 11'
-    ]
+    ocr_configs = ['--psm 11']
 
     candidate_score = Counter()
     candidate_hits = Counter()
@@ -133,16 +130,13 @@ def _predict_with_ocr(ocr_crop):
     digit_pass_count = 0
     candidate_pass_count = 0
 
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    # OPTIMASI SPEED: Hapus CLAHE untuk OCR, cukup Gray dan Otsu Threshold
     for roi_name, roi_img in _get_ocr_rois(zoom_ocr):
         gray_ocr = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
-        blur_ocr = cv2.GaussianBlur(gray_ocr, (5, 5), 0)
-        enhanced_ocr = clahe.apply(gray_ocr)
-        _, otsu_bin = cv2.threshold(blur_ocr, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, otsu_bin = cv2.threshold(gray_ocr, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         preprocessed_images = [
             ("gray", gray_ocr),
-            ("enh", enhanced_ocr),
             ("otsu", otsu_bin) 
         ]
 
@@ -155,7 +149,6 @@ def _predict_with_ocr(ocr_crop):
 
                     if cleaned_text:
                         digit_pass_count += 1
-                        print(f"[OCR PASS] roi={roi_name} prep={prep_name} psm={config.split()[1]} text='{cleaned_text}'")
 
                     matched_denoms = _extract_denom_candidates(cleaned_text)
                     if matched_denoms:
@@ -166,7 +159,9 @@ def _predict_with_ocr(ocr_crop):
 
                         for denom in set(matched_denoms):
                             score = 1.0
-                            if denom in token_set: score += 0.9
+                            if denom in token_set:
+                                score += 0.9
+                                score += 0.5
                             elif denom in collapsed: score += 0.35
                             score += 0.12 * max(len(denom) - 4, 0)
 
@@ -184,15 +179,11 @@ def _predict_with_ocr(ocr_crop):
 
     best_denom = max(
         candidate_score,
-        key=lambda d: (candidate_hits[d], candidate_score[d], len(d))
+        key=lambda d: (candidate_hits[d], candidate_score[d])
     )
     hits = candidate_hits[best_denom]
     vote_ratio = hits / max(candidate_pass_count, 1)
     ocr_label = DENOMINATION_MAP[best_denom]
-    print(
-        f"[OCR VOTE] score={dict(candidate_score)} hits={dict(candidate_hits)} | pilih={best_denom} "
-        f"(hit={hits}/{candidate_pass_count} kandidat-pass, digit-pass={digit_pass_count}, total={pass_count})"
-    )
 
     return ocr_label, float(vote_ratio), pass_count
 
@@ -232,11 +223,12 @@ def get_orb_and_color_features(img, max_features=2000):
     
     if keypoints_rough and len(keypoints_rough) >= 30:
         pts = np.array([kp.pt for kp in keypoints_rough])
-        x_min, y_min = np.min(pts, axis=0)
-        x_max, y_max = np.max(pts, axis=0)
         
-        pad_x = int((x_max - x_min) * 0.10)
-        pad_y = int((y_max - y_min) * 0.10)
+        x_min, y_min = np.percentile(pts, 8, axis=0) 
+        x_max, y_max = np.percentile(pts, 92, axis=0)
+        
+        pad_x = int((x_max - x_min) * 0.18)
+        pad_y = int((y_max - y_min) * 0.18)
         
         x1 = max(0, int(x_min) - pad_x)
         y1 = max(0, int(y_min) - pad_y)
@@ -299,40 +291,39 @@ def predict_currency(image_bytes):
         sorted_proba = np.sort(proba)
         svm_margin = float(sorted_proba[-1] - sorted_proba[-2]) if len(sorted_proba) >= 2 else float(confidence)
 
-        # --- 2. PREDIKSI OCR (DENGAN DOUBLE SPIN ANTI-TERBALIK) ---
+        # --- 2. PREDIKSI OCR ---
         ocr_label = None
         ocr_vote_ratio = 0.0
         try:
-            # Percobaan 1: Posisi normal (0 derajat)
             ocr_label_1, ocr_vote_ratio_1, ocr_pass_count_1 = _predict_with_ocr(ocr_crop)
             
-            # Jika tebakan OCR sangat lemah (rasio < 0.20), curigai uang terbalik 180 derajat
-            if ocr_vote_ratio_1 < 0.20:
-                print("[INFO] OCR awal lemah/gagal. Mencoba rotasi 180 derajat (Upside Down)...")
-                
-                # Putar gambar 180 derajat
+            if ocr_vote_ratio_1 < 0.25:
                 ocr_crop_flipped = cv2.rotate(ocr_crop, cv2.ROTATE_180)
-                
-                # Percobaan 2: Baca ulang setelah diputar
                 ocr_label_2, ocr_vote_ratio_2, ocr_pass_count_2 = _predict_with_ocr(ocr_crop_flipped)
                 
-                # Bandingkan siapa yang rasio votingnya lebih meyakinkan
                 if ocr_label_2 and ocr_vote_ratio_2 > ocr_vote_ratio_1:
                     ocr_label = ocr_label_2
                     ocr_vote_ratio = ocr_vote_ratio_2
-                    print(f"[OCR SUCCESS] Uang terbalik berhasil dibaca! label={ocr_label} vote_ratio={ocr_vote_ratio:.2f}")
                 else:
                     ocr_label = ocr_label_1
                     ocr_vote_ratio = ocr_vote_ratio_1
-                    if ocr_label:
-                        print(f"[OCR SUCCESS] Mempertahankan rotasi awal. label={ocr_label} vote_ratio={ocr_vote_ratio:.2f}")
             else:
                 ocr_label = ocr_label_1
                 ocr_vote_ratio = ocr_vote_ratio_1
-                print(f"[OCR SUCCESS] Orientasi normal terbaca baik. label={ocr_label} vote_ratio={ocr_vote_ratio:.2f}")
+
+            if (not ocr_label or ocr_vote_ratio < 0.30) and ocr_crop is not img:
+                full_frame_crop = img.copy()
+                if full_frame_crop.shape[0] > full_frame_crop.shape[1]:
+                    full_frame_crop = cv2.rotate(full_frame_crop, cv2.ROTATE_90_CLOCKWISE)
+                ocr_label_ff, ocr_vote_ratio_ff, _ = _predict_with_ocr(full_frame_crop)
+                ocr_vote_ratio_ff_adj = ocr_vote_ratio_ff * 0.70  # noise penalty
+                if ocr_label_ff and ocr_vote_ratio_ff_adj > (ocr_vote_ratio or 0):
+                    ocr_label = ocr_label_ff
+                    ocr_vote_ratio = ocr_vote_ratio_ff_adj
+                    print(f"[OCR] Full-frame fallback used: {ocr_label_ff} (ratio={ocr_vote_ratio_ff:.2f})")
                 
         except Exception as e:
-            print(f"[OCR WARNING] Tesseract error: {e}")
+            print(f"[OCR WARNING] {e}")
 
         # --- 3. DECISION FUSION ---
         final_label = svm_label
@@ -340,37 +331,84 @@ def predict_currency(image_bytes):
         if ocr_label:
             if ocr_label == svm_label:
                 confidence = min(0.995, max(confidence, 0.72 + (0.25 * ocr_vote_ratio)))
-                print(f"[FUSION] SVM dan OCR sepakat pada {svm_label}, confidence dinaikkan")
-            elif confidence < 0.72 and ocr_vote_ratio >= 0.45:
-                final_label = ocr_label
-                confidence = min(0.98, max(confidence, 0.60 + (0.35 * ocr_vote_ratio) + (0.20 * (1.0 - svm_margin))))
-                print(f"[FUSION] OCR override (SVM lemah): {svm_label} -> {ocr_label}")
-            elif svm_margin < 0.20 and ocr_vote_ratio >= 0.35:
-                final_label = ocr_label
-                confidence = min(0.97, max(confidence, 0.58 + (0.40 * ocr_vote_ratio) + (0.10 * (1.0 - svm_margin))))
-                print(f"[FUSION] OCR override (SVM ambigu): {svm_label} -> {ocr_label}")
-            elif confidence < 0.70 and ocr_vote_ratio >= 0.18:
-                final_label = ocr_label
-                confidence = min(0.92, max(confidence, 0.54 + (0.32 * ocr_vote_ratio) + (0.16 * (1.0 - svm_margin))))
-                print(f"[FUSION] OCR override (soft): {svm_label} -> {ocr_label}")
-            elif (
-                ocr_vote_ratio >= 0.15 and
-                confidence < 0.85 and
-                len(_denom_from_label(ocr_label)) > len(_denom_from_label(svm_label)) and
-                _denom_from_label(ocr_label).startswith(_denom_from_label(svm_label))
-            ):
-                final_label = ocr_label
-                confidence = min(0.94, max(confidence, 0.60 + (0.28 * ocr_vote_ratio)))
-                print(f"[FUSION] OCR override (denom panjang): {svm_label} -> {ocr_label}")
-            elif confidence < 0.45 and ocr_vote_ratio > 0.0:
-                final_label = ocr_label
-                confidence = min(0.90, max(confidence, 0.52 + (0.22 * ocr_vote_ratio)))
-                print(f"[FUSION] OCR override fallback: {svm_label} -> {ocr_label}")
             else:
-                print(
-                    f"[FUSION] Pertahankan SVM={svm_label}; OCR={ocr_label} belum cukup kuat "
-                    f"(svm_conf={confidence:.3f}, margin={svm_margin:.3f}, ocr_vote={ocr_vote_ratio:.2f})"
-                )
+                if (svm_label == 'idr_2000' and ocr_label == 'idr_10000') or \
+                   (svm_label == 'idr_10000' and ocr_label == 'idr_2000'):
+                    if ocr_vote_ratio >= 0.85 and confidence < 0.60:
+                        final_label = ocr_label
+                        confidence = 0.76
+
+                elif (svm_label == 'idr_10000' and ocr_label == 'idr_100000') or \
+                     (svm_label == 'idr_100000' and ocr_label == 'idr_10000'):
+                    if ocr_vote_ratio >= 0.90 and confidence < 0.55:
+                        final_label = ocr_label
+                        confidence = 0.76
+
+                elif (svm_label == 'idr_2000' and ocr_label == 'idr_100000') or \
+                     (svm_label == 'idr_100000' and ocr_label == 'idr_2000'):
+                    if ocr_vote_ratio >= 0.95 and confidence < 0.50:
+                        final_label = ocr_label
+                        confidence = 0.76
+
+                elif (svm_label == 'idr_1000' and ocr_label == 'idr_100000') or \
+                     (svm_label == 'idr_100000' and ocr_label == 'idr_1000'):
+                    if ocr_vote_ratio >= 0.95 and confidence < 0.50:
+                        final_label = ocr_label
+                        confidence = 0.76
+
+                elif (svm_label == 'idr_1000' and ocr_label == 'idr_50000') or \
+                     (svm_label == 'idr_50000' and ocr_label == 'idr_1000'):
+                    if ocr_vote_ratio >= 0.60 and confidence < 0.80:
+                        final_label = ocr_label
+                        confidence = min(0.90, max(confidence, 0.65 + (0.25 * ocr_vote_ratio)))
+
+                elif (svm_label == 'idr_2000' and ocr_label == 'idr_50000') or \
+                     (svm_label == 'idr_50000' and ocr_label == 'idr_2000'):
+                    if ocr_vote_ratio >= 0.60 and confidence < 0.80:
+                        final_label = ocr_label
+                        confidence = min(0.90, max(confidence, 0.65 + (0.25 * ocr_vote_ratio)))
+
+                elif (svm_label == 'idr_1000' and ocr_label == 'idr_20000') or \
+                     (svm_label == 'idr_20000' and ocr_label == 'idr_1000') or \
+                     (svm_label == 'idr_2000' and ocr_label == 'idr_20000') or \
+                     (svm_label == 'idr_20000' and ocr_label == 'idr_2000'):
+                    if ocr_vote_ratio >= 0.65 and confidence < 0.75:
+                        final_label = ocr_label
+                        confidence = min(0.90, max(confidence, 0.65 + (0.25 * ocr_vote_ratio)))
+
+                elif (svm_label == 'idr_5000' and ocr_label == 'idr_10000') or \
+                     (svm_label == 'idr_10000' and ocr_label == 'idr_5000'):
+                    if ocr_vote_ratio >= 0.55 and confidence < 0.82:
+                        final_label = ocr_label
+                        confidence = min(0.90, max(confidence, 0.65 + (0.25 * ocr_vote_ratio)))
+
+                elif (svm_label == 'idr_10000' and ocr_label == 'idr_50000') or \
+                     (svm_label == 'idr_50000' and ocr_label == 'idr_10000'):
+                    if ocr_vote_ratio >= 0.55 and confidence < 0.82:
+                        final_label = ocr_label
+                        confidence = min(0.90, max(confidence, 0.65 + (0.25 * ocr_vote_ratio)))
+
+                elif (svm_label == 'idr_5000' and ocr_label == 'idr_2000') or \
+                     (svm_label == 'idr_2000' and ocr_label == 'idr_5000') or \
+                     (svm_label == 'idr_5000' and ocr_label == 'idr_1000') or \
+                     (svm_label == 'idr_1000' and ocr_label == 'idr_5000'):
+                    if ocr_vote_ratio >= 0.60 and confidence < 0.78:
+                        final_label = ocr_label
+                        confidence = min(0.90, max(confidence, 0.63 + (0.25 * ocr_vote_ratio)))
+
+                else:
+                    ocr_proposes_100k = (ocr_label == 'idr_100000')
+                    conf_threshold   = 0.55 if ocr_proposes_100k else 0.65
+                    vote_threshold   = 0.75 if ocr_proposes_100k else 0.60
+                    margin_threshold = 0.10 if ocr_proposes_100k else 0.15
+                    vote_margin_thr  = 0.65 if ocr_proposes_100k else 0.50
+
+                    if confidence < conf_threshold and ocr_vote_ratio >= vote_threshold:
+                        final_label = ocr_label
+                        confidence = min(0.95, max(confidence, 0.60 + (0.35 * ocr_vote_ratio)))
+                    elif svm_margin < margin_threshold and ocr_vote_ratio >= vote_margin_thr:
+                        final_label = ocr_label
+                        confidence = min(0.90, max(confidence, 0.58 + (0.40 * ocr_vote_ratio)))
 
         confidence = float(min(max(confidence, 0.01), 0.995))
 
@@ -383,5 +421,4 @@ def predict_currency(image_bytes):
         return result
         
     except Exception as e:
-        print(f"Error during inference: {str(e)}")
         return {"error": str(e)}
