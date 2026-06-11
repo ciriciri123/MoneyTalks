@@ -9,4 +9,4 @@ Web Application/.env
 Web Application/.venv
 Web Application/__pycache__
 
-**/.env
+**/.DS_Store
