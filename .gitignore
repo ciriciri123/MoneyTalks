@@ -8,3 +8,5 @@ Web Application/data/
 Web Application/.env
 Web Application/.venv
 Web Application/__pycache__
+
+ML Model/.env
