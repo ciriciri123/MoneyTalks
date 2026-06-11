@@ -1,0 +1,95 @@
+{% extends "admin/base.html" %}
+{% block title %}Scan Images{% endblock %}
+
+{% block content %}
+
+<!-- Lightbox -->
+<div id="modal" class="lightbox" onclick="this.style.display='none'">
+    <img id="modal-img" src="" alt="Scan preview">
+</div>
+<script>
+function openModal(src) {
+    document.getElementById("modal-img").src = src;
+    document.getElementById("modal").style.display = "flex";
+}
+</script>
+
+<h1>Scan images</h1>
+
+<!-- Filter & Download -->
+<div class="card">
+    <form method="GET" style="display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;">
+        <div class="form-group" style="margin:0; flex:1; min-width:140px;">
+            <label>From date</label>
+            <input type="date" name="from" value="{{ from_date }}">
+        </div>
+        <div class="form-group" style="margin:0; flex:1; min-width:140px;">
+            <label>To date</label>
+            <input type="date" name="to" value="{{ to_date }}">
+        </div>
+        <button type="submit" class="btn btn-primary">Filter</button>
+        <a href="{{ url_for('admin_images_download') }}{% if from_date or to_date %}?{% if from_date %}from={{ from_date }}{% endif %}{% if from_date and to_date %}&{% endif %}{% if to_date %}to={{ to_date }}{% endif %}{% endif %}"
+           class="btn btn-secondary">Download ZIP</a>
+    </form>
+</div>
+
+<!-- Table -->
+<div class="card card-flush">
+    {% if scans %}
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Image</th>
+                <th>Denomination</th>
+                <th>Confidence</th>
+                <th>Scanned at</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for scan in scans %}
+            <tr>
+                <td style="color:var(--fg-4); font-family:var(--font-mono); font-size:12px;">
+                    {{ loop.index + (page - 1) * per_page }}
+                </td>
+                <td>
+                    {% if scan.image_path %}
+                    <img src="{{ url_for('admin_image_view', image_path=scan.image_path) }}"
+                         alt="{{ scan.denomination }}"
+                         onclick="openModal(this.src)"
+                         class="scan-thumb">
+                    {% else %}
+                    <span style="color:var(--fg-4); font-size:12px;">No image</span>
+                    {% endif %}
+                </td>
+                <td><strong>{{ scan.denomination }}</strong></td>
+                <td style="font-family:var(--font-mono); font-size:13px;">
+                    {{ "%.1f"|format(scan.confidence * 100) }}%
+                </td>
+                <td style="color:var(--fg-3); font-family:var(--font-mono); font-size:12px;">
+                    {{ scan.scanned_at[:19].replace('T', ' ') }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="text-align:center; padding:48px; color:var(--fg-4); font-size:14px;">
+        No scans stored yet.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Pagination -->
+{% if scans|length == per_page %}
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="{{ url_for('admin_images', page=page-1) }}{% if from_date %}&from={{ from_date }}{% endif %}{% if to_date %}&to={{ to_date }}{% endif %}"
+       class="btn btn-secondary">← Previous</a>
+    {% endif %}
+    <a href="{{ url_for('admin_images', page=page+1) }}{% if from_date %}&from={{ from_date }}{% endif %}{% if to_date %}&to={{ to_date }}{% endif %}"
+       class="btn btn-secondary">Next →</a>
+</div>
+{% endif %}
+
+{% endblock %}

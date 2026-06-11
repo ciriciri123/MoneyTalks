@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %} — MoneyTalks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <style>
+        /* ── Admin shell ─────────────────────────────────────── */
+        body { min-height: 100vh; }
+
+        /* Shrink h1/h2 margins inside the admin container */
+        .container h1 { font-size: 24px; letter-spacing: -0.5px; margin-bottom: 28px; }
+        .container h2 { font-size: 17px; letter-spacing: -0.2px; margin-bottom: 16px; }
+
+        /* ── Stat cards (dashboard) ──────────────────────────── */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--surface-1);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-lg);
+            padding: 24px 20px;
+            text-align: center;
+            box-shadow: var(--shadow-inset);
+        }
+
+        .stat-value {
+            font-family: var(--font);
+            font-size: 2.4rem;
+            font-weight: 600;
+            letter-spacing: -1.5px;
+            color: var(--accent);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .stat-value.success { color: #4ade80; }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: var(--fg-3);
+        }
+
+        /* ── Quick links row ─────────────────────────────────── */
+        .link-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* ── Image thumbnail ─────────────────────────────────── */
+        .scan-thumb {
+            width: 80px;
+            height: 46px;
+            object-fit: cover;
+            border-radius: var(--r-sm);
+            border: 1px solid var(--hairline);
+            cursor: zoom-in;
+            transition: border-color var(--duration) var(--ease);
+        }
+        .scan-thumb:hover { border-color: var(--accent); }
+
+        /* ── Pagination ──────────────────────────────────────── */
+        .pagination {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        /* ── Lightbox ────────────────────────────────────────── */
+        .lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.88);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+            backdrop-filter: blur(4px);
+        }
+
+        .lightbox img {
+            max-width: 90vw;
+            max-height: 90vh;
+            border-radius: var(--r-lg);
+            border: 1px solid var(--hairline);
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Navigation ────────────────────────────────────────────── -->
+<nav class="nav">
+    <div class="nav-left">
+        <a href="{{ url_for('admin_dashboard') }}" class="nav-brand">
+            <span class="nav-glyph">◆</span>
+            MoneyTalks
+        </a>
+        <div class="nav-links">
+            <a href="{{ url_for('admin_dashboard') }}"
+               class="nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">
+               Dashboard
+            </a>
+            <a href="{{ url_for('admin_images') }}"
+               class="nav-link {% if request.endpoint in ['admin_images', 'admin_image_view'] %}active{% endif %}">
+               Scan images
+            </a>
+            <a href="{{ url_for('admin_models') }}"
+               class="nav-link {% if request.endpoint in ['admin_models', 'admin_models_upload', 'admin_models_deploy'] %}active{% endif %}">
+               Models
+            </a>
+        </div>
+    </div>
+    <div class="nav-right">
+        <span class="nav-meta">{{ admin.email }}</span>
+        <div class="nav-sep"></div>
+        <a href="{{ url_for('index') }}"       class="btn btn-outline"  style="font-size:13px;padding:5px 10px;">App</a>
+        <a href="{{ url_for('admin_logout') }}" class="btn btn-danger"   style="font-size:13px;padding:5px 10px;">Logout</a>
+    </div>
+</nav>
+
+<!-- ── Content ────────────────────────────────────────────────── -->
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>

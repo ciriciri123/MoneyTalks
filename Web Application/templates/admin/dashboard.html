@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<!-- Stat cards -->
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.get('total_scans', '—') }}</div>
+        <div class="stat-label">Total scans</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-value success" style="font-size:1.3rem; letter-spacing:-0.4px;">
+            {% if deployed %}v{{ deployed.version_string }}{% else %}Default{% endif %}
+        </div>
+        <div class="stat-label">Active model</div>
+    </div>
+
+    {% if deployed %}
+    <div class="stat-card">
+        <div class="stat-value" style="font-size:1.1rem; letter-spacing:-0.3px; font-family:var(--font-mono);">
+            {{ deployed.uploaded_at[:10] }}
+        </div>
+        <div class="stat-label">Last deploy</div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick links -->
+<div class="card">
+    <h2>Quick links</h2>
+    <div class="link-row">
+        <a href="{{ url_for('admin_images') }}" class="btn btn-primary">Scan images</a>
+        <a href="{{ url_for('admin_models') }}" class="btn btn-secondary">Manage models</a>
+        <a href="{{ url_for('index') }}"         class="btn btn-outline">Open app</a>
+    </div>
+</div>
+{% endblock %}

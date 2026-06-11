@@ -1,6 +1,0 @@
-# Python compiled files
-__pycache__/
-*.pyc
-
-# Dataset
-data/

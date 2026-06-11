@@ -1,33 +1,14 @@
-# MoneyTalks — Python Dependencies
-# Install: pip install -r requirements.txt
-
-# ── Web Framework ─────────────────────────────────────────────────────────────
-Flask>=3.0.0
-gunicorn>=21.2.0
-
-# ── Flask Extensions ──────────────────────────────────────────────────────────
-Flask-Login>=0.6.3          # Admin session management
-Flask-Limiter>=3.5.0        # Rate limiting for login + API routes
-Flask-WTF>=1.2.1            # CSRF protection for admin forms
-
-# ── Supabase Data Tier ────────────────────────────────────────────────────────
-supabase>=2.3.0             # Official Supabase Python client (DB + Storage)
-
-# ── Authentication ────────────────────────────────────────────────────────────
-bcrypt>=4.1.2               # Password hashing for admin credentials
-
-# ── ML Inference ──────────────────────────────────────────────────────────────
-scikit-learn>=1.4.0         # Must match the version used to train the .pkl
-joblib>=1.3.0               # Deserialise the .pkl model file
-numpy>=1.26.0               # Numerical arrays for feature vectors
-Pillow>=10.2.0              # JPEG decoding and image preprocessing
-
-# ── TTS Fallback ──────────────────────────────────────────────────────────────
-gTTS>=2.4.0                 # Google TTS — requires outbound internet access
-
-# ── Environment ───────────────────────────────────────────────────────────────
-python-dotenv>=1.0.0        # Load .env into os.environ before app starts
-
-# ── Development / Testing (not needed in production) ─────────────────────────
-pytest>=8.0.0
-pytest-flask>=1.3.0
+flask>=3.0.0
+flask-login>=0.6.0
+flask-wtf>=1.2.0
+opencv-python>=4.10.0.84
+scikit-learn>=1.5.0
+numpy>=2.0.0
+pytesseract>=0.3.10
+joblib>=1.4.0
+Pillow>=10.0.0
+gTTS>=2.5.0
+supabase>=2.0.0
+bcrypt>=4.0.0
+python-dotenv>=1.0.0
+pytest>=8.2.0

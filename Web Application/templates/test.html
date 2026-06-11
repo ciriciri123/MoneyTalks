@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Upload — MoneyTalks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <style>
+        main {
+            min-height: calc(100vh - 56px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 48px 24px 80px;
+        }
+
+        .page-wrap {
+            width: 100%;
+            max-width: 580px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .page-header {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            color: var(--fg-1);
+            margin: 0;
+        }
+
+        .page-sub {
+            font-size: 14px;
+            color: var(--fg-3);
+            margin: 0;
+        }
+
+        /* Upload area */
+        .upload-area {
+            border: 1px dashed var(--hairline-strong);
+            border-radius: var(--r-lg);
+            padding: 28px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            background: var(--surface-1);
+            box-shadow: var(--shadow-inset);
+            transition: border-color var(--duration) var(--ease);
+        }
+        .upload-area:hover { border-color: var(--hairline-tertiary); }
+
+        .upload-label {
+            font-size: 13px;
+            color: var(--fg-3);
+            letter-spacing: 0;
+            text-transform: none;
+            margin: 0;
+        }
+
+        input[type=file]#fileInput {
+            width: auto;
+            background: transparent;
+            border: none;
+            padding: 0;
+            font-size: 13px;
+            color: var(--fg-3);
+            box-shadow: none;
+        }
+
+        /* Image preview container */
+        .preview-wrap {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+        }
+
+        #previewImage {
+            max-width: 100%;
+            border-radius: var(--r-xl);
+            display: none;
+            border: 1px solid var(--hairline);
+        }
+
+        .cv-box {
+            position: absolute;
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 0 1px rgba(94,106,210,0.25), 0 0 16px rgba(94,106,210,0.15);
+            pointer-events: none;
+            z-index: 10;
+            display: none;
+            border-radius: var(--r-xs);
+        }
+
+        /* Result card */
+        .result-card {
+            background: var(--surface-1);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-lg);
+            padding: 20px 24px;
+            box-shadow: var(--shadow-inset);
+            display: none;
+        }
+        .result-card.valid   { border-color: rgba(39,166,68,0.3); }
+        .result-card.invalid { border-color: rgba(239,68,68,0.3); }
+
+        .result-title {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--fg-3);
+            margin: 0 0 14px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--hairline);
+            font-size: 14px;
+        }
+        .result-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+        .result-key  { color: var(--fg-3); }
+        .result-val  { color: var(--fg-1); font-weight: 500; font-family: var(--font-mono); font-size: 13px; }
+        .result-main { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+
+        .result-val.valid-text   { color: #4ade80; }
+        .result-val.invalid-text { color: #f87171; }
+
+        /* Loading */
+        .loader {
+            display: none;
+            font-size: 13px;
+            color: var(--fg-3);
+            font-family: var(--font-mono);
+            text-align: center;
+            padding: 8px 0;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Navigation ────────────────────────────────────────────── -->
+<nav class="nav">
+    <div class="nav-left">
+        <a href="{{ url_for('index') }}" class="nav-brand">
+            <span class="nav-glyph">◆</span>
+            MoneyTalks
+        </a>
+        <div class="nav-links">
+            <a href="{{ url_for('test_page') }}" class="nav-link active">Test Upload</a>
+        </div>
+    </div>
+    <div class="nav-right">
+        <a href="{{ url_for('index') }}"     class="btn btn-secondary" style="font-size:13px;padding:6px 12px;">Camera</a>
+        <a href="{{ url_for('admin_login') }}" class="btn btn-outline"  style="font-size:13px;padding:6px 12px;">Admin</a>
+    </div>
+</nav>
+
+<!-- ── Main ──────────────────────────────────────────────────── -->
+<main>
+    <div class="page-wrap">
+
+        <div class="page-header">
+            <span class="eyebrow">Static Image Testing</span>
+            <h1 class="page-title" style="margin:0;">Test model accuracy</h1>
+            <p class="page-sub">Upload a static banknote image to test SVM inference without the camera.</p>
+        </div>
+
+        <!-- Upload -->
+        <div class="upload-area">
+            <p class="upload-label">Select a JPEG or PNG image of a Rupiah banknote.</p>
+            <input type="file" id="fileInput" accept="image/jpeg,image/png,image/jpg">
+            <button onclick="uploadImage()" class="btn btn-primary">Analyse image</button>
+        </div>
+
+        <p id="loading" class="loader">Analysing with SVM pipeline...</p>
+
+        <!-- Preview -->
+        <div class="preview-wrap" id="previewWrap" style="display:none;">
+            <img id="previewImage" alt="Preview" />
+            <div id="cv-box" class="cv-box"></div>
+        </div>
+
+        <!-- Result -->
+        <div id="resultBox" class="result-card">
+            <p class="result-title">Prediction result</p>
+            <div class="result-row">
+                <span class="result-key">Denomination</span>
+                <span class="result-val result-main" id="resMsg">—</span>
+            </div>
+            <div class="result-row">
+                <span class="result-key">SVM label</span>
+                <span class="result-val" id="resLabel">—</span>
+            </div>
+            <div class="result-row">
+                <span class="result-key">Confidence</span>
+                <span class="result-val" id="resConf">—</span>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<script>
+    const fileInput    = document.getElementById("fileInput");
+    const previewImage = document.getElementById("previewImage");
+    const previewWrap  = document.getElementById("previewWrap");
+    const resultBox    = document.getElementById("resultBox");
+    const loading      = document.getElementById("loading");
+    const cvBox        = document.getElementById("cv-box");
+
+    fileInput.addEventListener("change", function () {
+        const file = this.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            previewImage.src = e.target.result;
+            previewImage.style.display = "block";
+            previewWrap.style.display  = "inline-block";
+            resultBox.style.display    = "none";
+            resultBox.className        = "result-card";
+            cvBox.style.display        = "none";
+        };
+        reader.readAsDataURL(file);
+    });
+
+    async function uploadImage() {
+        const file = fileInput.files[0];
+        if (!file) { alert("Pilih gambar terlebih dahulu."); return; }
+
+        const formData = new FormData();
+        formData.append("frame", file);
+
+        loading.style.display   = "block";
+        resultBox.style.display = "none";
+        cvBox.style.display     = "none";
+
+        try {
+            const response = await fetch("/api/detect", { method: "POST", body: formData });
+            const data     = await response.json();
+            loading.style.display = "none";
+
+            if (response.ok) {
+                resultBox.style.display = "block";
+                document.getElementById("resLabel").innerText = data.raw_label || "—";
+                document.getElementById("resConf").innerText  = (data.confidence * 100).toFixed(2) + "%";
+
+                const msgEl = document.getElementById("resMsg");
+                msgEl.innerText = data.message || "—";
+
+                if (data.valid) {
+                    resultBox.className  = "result-card valid";
+                    msgEl.className      = "result-val result-main valid-text";
+                } else {
+                    resultBox.className  = "result-card invalid";
+                    msgEl.className      = "result-val result-main invalid-text";
+                }
+
+                // Bounding box
+                if (data.box && data.box.length === 4 && data.box[2] > 0) {
+                    cvBox.style.display = "block";
+                    cvBox.style.left    = (data.box[0] * 100) + "%";
+                    cvBox.style.top     = (data.box[1] * 100) + "%";
+                    cvBox.style.width   = (data.box[2] * 100) + "%";
+                    cvBox.style.height  = (data.box[3] * 100) + "%";
+                }
+            } else {
+                alert("Server error: " + (data.error || response.statusText));
+            }
+        } catch (e) {
+            loading.style.display = "none";
+            alert("Connection error: " + e.message);
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login — MoneyTalks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .login-wrap {
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        /* Brand mark above the card */
+        .login-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 28px;
+        }
+
+        .login-brand-glyph {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: var(--accent);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+        }
+
+        .login-brand-name {
+            font-family: var(--font);
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: -0.4px;
+            color: var(--fg-1);
+        }
+
+        /* Card */
+        .login-card {
+            background: var(--surface-1);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-xl);
+            padding: 32px 28px;
+            box-shadow: var(--shadow-inset);
+        }
+
+        .login-title {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.4px;
+            color: var(--fg-1);
+            margin: 0 0 4px;
+        }
+
+        .login-sub {
+            font-size: 14px;
+            color: var(--fg-3);
+            margin: 0 0 24px;
+        }
+
+        .error-msg {
+            background: rgba(239,68,68,0.08);
+            color: #f87171;
+            border: 1px solid rgba(239,68,68,0.2);
+            border-radius: var(--r-md);
+            padding: 10px 14px;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            font-size: 15px;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--fg-4);
+        }
+
+        .back-link a { color: var(--fg-3); }
+        .back-link a:hover { color: var(--accent-hover); }
+    </style>
+</head>
+<body>
+
+<div class="login-wrap">
+
+    <div class="login-brand">
+        <span class="login-brand-glyph">◆</span>
+        <span class="login-brand-name">MoneyTalks</span>
+    </div>
+
+    <div class="login-card">
+        <h1 class="login-title">Admin login</h1>
+        <p class="login-sub">Sign in to manage scans and model versions.</p>
+
+        {% if error %}
+            <div class="error-msg">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email"
+                       required autofocus placeholder="admin@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password"
+                       required placeholder="••••••••">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-submit">Sign in</button>
+        </form>
+    </div>
+
+    <p class="back-link">
+        <a href="{{ url_for('index') }}">← Back to app</a>
+    </p>
+
+</div>
+
+</body>
+</html>
